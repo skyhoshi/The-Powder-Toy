@@ -26,6 +26,7 @@ GameSave::GameSave(GameSave & save):
 	paused(save.paused),
 	gravityMode(save.gravityMode),
 	airMode(save.airMode),
+	ambientAirTemp(save.ambientAirTemp),
 	edgeMode(save.edgeMode),
 	signs(save.signs),
 	stkm(save.stkm),
@@ -173,6 +174,7 @@ void GameSave::InitVars()
 	paused = false;
 	gravityMode = 0;
 	airMode = 0;
+	ambientAirTemp = R_TEMP + 273.15f;
 	edgeMode = 0;
 	translated.x = translated.y = 0;
 	pmapbits = 8; // default to 8 bits for older saves
@@ -571,6 +573,21 @@ void GameSave::CheckBsonFieldInt(bson_iterator iter, const char *field, int *set
 	}
 }
 
+void GameSave::CheckBsonFieldFloat(bson_iterator iter, const char *field, float *setting)
+{
+	if (!strcmp(bson_iterator_key(&iter), field))
+	{
+		if (bson_iterator_type(&iter) == BSON_DOUBLE)
+		{
+			*setting = float(bson_iterator_int(&iter));
+		}
+		else
+		{
+			fprintf(stderr, "Wrong type for %s\n", bson_iterator_key(&iter));
+		}
+	}
+}
+
 void GameSave::readOPS(char * data, int dataLength)
 {
 	unsigned char *inputData = (unsigned char*)data, *bsonData = NULL, *partsData = NULL, *partsPosData = NULL, *fanData = NULL, *wallData = NULL, *soapLinkData = NULL;
@@ -668,6 +685,7 @@ void GameSave::readOPS(char * data, int dataLength)
 		CheckBsonFieldBool(iter, "paused", &paused);
 		CheckBsonFieldInt(iter, "gravityMode", &gravityMode);
 		CheckBsonFieldInt(iter, "airMode", &airMode);
+		CheckBsonFieldFloat(iter, "ambientAirTemp", &ambientAirTemp);
 		CheckBsonFieldInt(iter, "edgeMode", &edgeMode);
 		CheckBsonFieldInt(iter, "pmapbits", &pmapbits);
 		if (!strcmp(bson_iterator_key(&iter), "signs"))
@@ -2033,12 +2051,6 @@ void GameSave::readPSv(char * saveDataChar, int dataLength)
 	minimumMinorVersion = minor;\
 }
 
-// restrict the minimum version this save can be rendered with
-#define RESTRICTRENDERVERSION(major, minor) if ((major) > blameSimon_major || (((major) == blameSimon_major && (minor) > blameSimon_minor))) {\
-	blameSimon_major = major;\
-	blameSimon_minor = minor;\
-}
-
 char * GameSave::serialiseOPS(unsigned int & dataLength)
 {
 	int blockX, blockY, blockW, blockH, fullX, fullY, fullW, fullH;
@@ -2047,8 +2059,6 @@ char * GameSave::serialiseOPS(unsigned int & dataLength)
 	// when building, this number may be increased depending on what elements are used
 	// or what properties are detected
 	int minimumMajorVersion = 90, minimumMinorVersion = 2;
-	// blame simon for always being slow updating the renderer
-	int blameSimon_major = 92, blameSimon_minor = 0;
 
 	//Get coords in blocks
 	blockX = 0;//orig_x0/CELL;
@@ -2230,7 +2240,6 @@ char * GameSave::serialiseOPS(unsigned int & dataLength)
 					partsData[partsDataLen++] = particles[i].type >> 8;
 					fieldDesc |= 1 << 14;
 					RESTRICTVERSION(93, 0);
-					RESTRICTRENDERVERSION(93, 0);
 				}
 
 				//Extra Temperature (2nd byte optional, 1st required), 1 to 2 bytes
@@ -2538,8 +2547,6 @@ char * GameSave::serialiseOPS(unsigned int & dataLength)
 	bson_append_start_object(&b, "minimumVersion");
 	bson_append_int(&b, "major", minimumMajorVersion);
 	bson_append_int(&b, "minor", minimumMinorVersion);
-	bson_append_int(&b, "rendermajor", blameSimon_major);
-	bson_append_int(&b, "renderminor", blameSimon_minor);
 	bson_append_finish_object(&b);
 
 
@@ -2550,6 +2557,11 @@ char * GameSave::serialiseOPS(unsigned int & dataLength)
 	bson_append_bool(&b, "paused", paused);
 	bson_append_int(&b, "gravityMode", gravityMode);
 	bson_append_int(&b, "airMode", airMode);
+	if (fabsf(ambientAirTemp - (R_TEMP + 273.15f)) > 0.0001f)
+	{
+		bson_append_double(&b, "ambientAirTemp", double(ambientAirTemp));
+		RESTRICTVERSION(96, 0);
+	}
 	bson_append_int(&b, "edgeMode", edgeMode);
 
 	if (stkm.hasData())

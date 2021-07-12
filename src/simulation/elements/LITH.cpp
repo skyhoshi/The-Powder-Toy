@@ -7,7 +7,7 @@ void Element::Element_LITH()
 {
 	Identifier = "DEFAULT_PT_LITH";
 	Name = "LITH";
-	Colour = PIXPACK(0xC0C0C0);
+	Colour = PIXPACK(0xB6AABF);
 	MenuVisible = 1;
 	MenuSection = SC_EXPLOSIVE;
 	Enabled = 1;
@@ -58,11 +58,6 @@ For game reasons, baseline LITH has the reactions of both its pure form and
 its hydroxide, and also has basic li-ion battery-like behavior.
 It absorbs CO2 like its hydroxide form, but can only be converted into GLAS
 after having absorbed CO2.
-
-If LITH comes in contact with water, it will consume 1 WATR, increment tmp,
-and heat itself up by 400K. At 1000K it bursts into flames and sets tmp to 10
-if still in contact with WATR, setting its life to 24 and insta-boiling
-water in its immediate vincity.
 
 */
 
@@ -117,7 +112,7 @@ static int update(UPDATE_FUNC_ARGS)
 					}
 					if (self.temp > 440.f)
 					{
-						burnTimer = 1024 + (storedEnergy > 24 ? 24 : storedEnergy);
+						burnTimer = 1024 + (storedEnergy > 24 ? 96 : storedEnergy * 4);
 						sim->part_change_type(ID(neighborData), x + rx, y + ry, PT_H2);
 						hydrogenationFactor = 10;
 					}

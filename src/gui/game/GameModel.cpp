@@ -1,39 +1,37 @@
 #include "GameModel.h"
 
-#include "GameView.h"
-#include "GameController.h"
+#include <iostream>
+#include <algorithm>
 
-#include "simulation/ToolClasses.h"
-#include "EllipseBrush.h"
-#include "TriangleBrush.h"
 #include "BitmapBrush.h"
-#include "QuickOptions.h"
-#include "GameModelException.h"
-#include "Format.h"
-#include "Menu.h"
+#include "EllipseBrush.h"
 #include "Favorite.h"
+#include "Format.h"
+#include "GameController.h"
+#include "GameModelException.h"
+#include "GameView.h"
+#include "Menu.h"
 #include "Notification.h"
+#include "TriangleBrush.h"
+#include "QuickOptions.h"
 
 #include "client/Client.h"
 #include "client/GameSave.h"
 #include "client/SaveFile.h"
 #include "client/SaveInfo.h"
-
+#include "common/Platform.h"
 #include "graphics/Renderer.h"
-
 #include "simulation/Air.h"
+#include "simulation/GOLString.h"
+#include "simulation/Gravity.h"
 #include "simulation/Simulation.h"
 #include "simulation/Snapshot.h"
-#include "simulation/Gravity.h"
-#include "simulation/ElementGraphics.h"
 #include "simulation/ElementClasses.h"
-#include "simulation/GOLString.h"
+#include "simulation/ElementGraphics.h"
+#include "simulation/ToolClasses.h"
 
 #include "gui/game/DecorationTool.h"
 #include "gui/interface/Engine.h"
-
-#include <iostream>
-#include <algorithm>
 
 GameModel::GameModel():
 	clipboard(NULL),
@@ -50,6 +48,7 @@ GameModel::GameModel():
 	colourSelector(false),
 	colour(255, 0, 0, 255),
 	edgeMode(0),
+	ambientAirTemp(R_TEMP + 273.15f),
 	decoSpace(0)
 {
 	sim = new Simulation();
@@ -95,6 +94,15 @@ GameModel::GameModel():
 	//Load config into simulation
 	edgeMode = Client::Ref().GetPrefInteger("Simulation.EdgeMode", 0);
 	sim->SetEdgeMode(edgeMode);
+	ambientAirTemp = R_TEMP + 273.15;
+	{
+		auto temp = Client::Ref().GetPrefNumber("Simulation.AmbientAirTemp", ambientAirTemp);
+		if (MIN_TEMP <= temp && MAX_TEMP >= temp)
+		{
+			ambientAirTemp = temp;
+		}
+	}
+	sim->air->ambientAirTemp = ambientAirTemp;
 	decoSpace = Client::Ref().GetPrefInteger("Simulation.DecoSpace", 0);
 	sim->SetDecoSpace(decoSpace);
 	int ngrav_enable = Client::Ref().GetPrefInteger("Simulation.NewtonianGravity", 0);
@@ -140,6 +148,8 @@ GameModel::GameModel():
 
 	mouseClickRequired = Client::Ref().GetPrefBool("MouseClickRequired", false);
 	includePressure = Client::Ref().GetPrefBool("Simulation.IncludePressure", true);
+
+	ClearSimulation();
 }
 
 GameModel::~GameModel()
@@ -463,10 +473,10 @@ void GameModel::BuildBrushList()
 	brushList.push_back(new TriangleBrush(ui::Point(4, 4)));
 
 	//Load more from brushes folder
-	std::vector<ByteString> brushFiles = Client::Ref().DirectorySearch(BRUSH_DIR, "", ".ptb");
+	std::vector<ByteString> brushFiles = Platform::DirectorySearch(BRUSH_DIR, "", { ".ptb" });
 	for (size_t i = 0; i < brushFiles.size(); i++)
 	{
-		std::vector<unsigned char> brushData = Client::Ref().ReadFile(brushFiles[i]);
+		std::vector<unsigned char> brushData = Client::Ref().ReadFile(BRUSH_DIR + ByteString(PATH_SEP) + brushFiles[i]);
 		if(!brushData.size())
 		{
 			std::cout << "Brushes: Skipping " << brushFiles[i] << ". Could not open" << std::endl;
@@ -517,6 +527,17 @@ void GameModel::SetEdgeMode(int edgeMode)
 int GameModel::GetEdgeMode()
 {
 	return this->edgeMode;
+}
+
+void GameModel::SetAmbientAirTemperature(float ambientAirTemp)
+{
+	this->ambientAirTemp = ambientAirTemp;
+	sim->air->ambientAirTemp = ambientAirTemp;
+}
+
+float GameModel::GetAmbientAirTemperature()
+{
+	return this->ambientAirTemp;
 }
 
 void GameModel::SetDecoSpace(int decoSpace)
@@ -735,6 +756,7 @@ void GameModel::SetSave(SaveInfo * newSave, bool invertIncludePressure)
 		SetPaused(saveData->paused | GetPaused());
 		sim->gravityMode = saveData->gravityMode;
 		sim->air->airMode = saveData->airMode;
+		sim->air->ambientAirTemp = saveData->ambientAirTemp;
 		sim->edgeMode = saveData->edgeMode;
 		sim->legacy_enable = saveData->legacyEnable;
 		sim->water_equal_test = saveData->waterEEnabled;
@@ -796,6 +818,7 @@ void GameModel::SetSaveFile(SaveFile * newSave, bool invertIncludePressure)
 		SetPaused(saveData->paused | GetPaused());
 		sim->gravityMode = saveData->gravityMode;
 		sim->air->airMode = saveData->airMode;
+		sim->air->ambientAirTemp = saveData->ambientAirTemp;
 		sim->edgeMode = saveData->edgeMode;
 		sim->legacy_enable = saveData->legacyEnable;
 		sim->water_equal_test = saveData->waterEEnabled;
@@ -1111,6 +1134,7 @@ void GameModel::ClearSimulation()
 	sim->legacy_enable = false;
 	sim->water_equal_test = false;
 	sim->SetEdgeMode(edgeMode);
+	sim->air->ambientAirTemp = ambientAirTemp;
 
 	sim->clear_sim();
 	ren->ClearAccumulation();

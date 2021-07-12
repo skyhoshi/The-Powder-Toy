@@ -90,6 +90,17 @@ void OptionsModel::SetEdgeMode(int edgeMode)
 	notifySettingsChanged();
 }
 
+float OptionsModel::GetAmbientAirTemperature()
+{
+	return gModel->GetSimulation()->air->ambientAirTemp;
+}
+void OptionsModel::SetAmbientAirTemperature(float ambientAirTemp)
+{
+	Client::Ref().SetPref("Simulation.AmbientAirTemp", ambientAirTemp);
+	gModel->SetAmbientAirTemperature(ambientAirTemp);
+	notifySettingsChanged();
+}
+
 int OptionsModel::GetGravityMode()
 {
 	return sim->gravityMode;
@@ -238,18 +249,6 @@ void OptionsModel::SetMomentumScroll(bool state)
 {
 	Client::Ref().SetPref("MomentumScroll", state);
 	ui::Engine::Ref().MomentumScroll = state;
-	notifySettingsChanged();
-}
-
-bool OptionsModel::GetAutoDrawLimit()
-{
-	return ui::Engine::Ref().AutoDrawingFrequencyLimit;
-}
-
-void OptionsModel::SetAutoDrawLimit(bool state)
-{
-	ui::Engine::Ref().AutoDrawingFrequencyLimit = state;
-	Client::Ref().SetPref("AutoDrawLimit", state);
 	notifySettingsChanged();
 }
 

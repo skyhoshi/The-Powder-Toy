@@ -1,30 +1,32 @@
 #include "GameView.h"
 
-#include "GameController.h"
-#include "GameModel.h"
-
+#include "Brush.h"
 #include "Config.h"
-#include "Misc.h"
+#include "DecorationTool.h"
 #include "Favorite.h"
 #include "Format.h"
-
-#include "Notification.h"
-#include "Brush.h"
+#include "GameController.h"
+#include "GameModel.h"
 #include "IntroText.h"
-#include "QuickOptions.h"
-#include "DecorationTool.h"
-#include "ToolButton.h"
-#include "MenuButton.h"
 #include "Menu.h"
+#include "MenuButton.h"
+#include "Misc.h"
+#include "Notification.h"
+#include "ToolButton.h"
+#include "QuickOptions.h"
 
 #include "client/SaveInfo.h"
 #include "client/SaveFile.h"
 #include "client/Client.h"
-
+#include "common/Platform.h"
 #include "graphics/Graphics.h"
 #include "graphics/Renderer.h"
-
 #include "gui/Style.h"
+#include "simulation/ElementClasses.h"
+#include "simulation/ElementDefs.h"
+#include "simulation/SaveRenderer.h"
+#include "simulation/SimulationData.h"
+
 #include "gui/dialogues/ConfirmPrompt.h"
 #include "gui/dialogues/ErrorMessage.h"
 #include "gui/dialogues/InformationMessage.h"
@@ -32,11 +34,6 @@
 #include "gui/interface/Colour.h"
 #include "gui/interface/Keys.h"
 #include "gui/interface/Engine.h"
-
-#include "simulation/SaveRenderer.h"
-#include "simulation/SimulationData.h"
-#include "simulation/ElementDefs.h"
-#include "simulation/ElementClasses.h"
 
 #include <cstring>
 
@@ -912,8 +909,8 @@ int GameView::Record(bool record)
 		{
 			time_t startTime = time(NULL);
 			recordingFolder = startTime;
-			Client::Ref().MakeDirectory("recordings");
-			Client::Ref().MakeDirectory(ByteString::Build("recordings", PATH_SEP, recordingFolder).c_str());
+			Platform::MakeDirectory("recordings");
+			Platform::MakeDirectory(ByteString::Build("recordings", PATH_SEP, recordingFolder).c_str());
 			recording = true;
 		}
 	}
@@ -2191,7 +2188,7 @@ void GameView::OnDraw()
 				}
 				sampleInfo << ", Temp: " << (sample.particle.temp - 273.15f) << " C";
 				sampleInfo << ", Life: " << sample.particle.life;
-				if (sample.particle.type != PT_RFRG && sample.particle.type != PT_RFGL)
+				if (sample.particle.type != PT_RFRG && sample.particle.type != PT_RFGL && sample.particle.type != PT_LIFE)
 				{
 					if (sample.particle.type == PT_CONV)
 					{
@@ -2208,7 +2205,9 @@ void GameView::OnDraw()
 				}
 
 				// only elements that use .tmp2 show it in the debug HUD
-				if (type == PT_CRAY || type == PT_DRAY || type == PT_EXOT || type == PT_LIGH || type == PT_SOAP || type == PT_TRON || type == PT_VIBR || type == PT_VIRS || type == PT_WARP || type == PT_LCRY || type == PT_CBNW || type == PT_TSNS || type == PT_DTEC || type == PT_LSNS || type == PT_PSTN || type == PT_LDTC)
+				if (type == PT_CRAY || type == PT_DRAY || type == PT_EXOT || type == PT_LIGH || type == PT_SOAP || type == PT_TRON
+						|| type == PT_VIBR || type == PT_VIRS || type == PT_WARP || type == PT_LCRY || type == PT_CBNW || type == PT_TSNS
+						|| type == PT_DTEC || type == PT_LSNS || type == PT_PSTN || type == PT_LDTC || type == PT_VSNS || type == PT_LITH)
 					sampleInfo << ", Tmp2: " << sample.particle.tmp2;
 
 				sampleInfo << ", Pressure: " << sample.AirPressure;
